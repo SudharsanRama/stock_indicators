@@ -3,6 +3,7 @@ library(RMariaDB)
 library(candlesticks)
 library(xts)
 library(rjson)
+library(googledrive)
 
 stockDb <- dbConnect(RMariaDB::MariaDB(), user='stockuser', password='stockuser@123', dbname='stockdb', host='localhost')
 
@@ -109,6 +110,7 @@ for(symbol in symbols){
     }
 }
 
+result_file <- paste0("/Users/sr1000266884/Documents/repositories/stock_indicators/results/indicators_",Sys.Date(),".json")
 write(toJSON(list(
     continuous = list(doji = doji_symbols),
     bullish = list(
@@ -122,8 +124,10 @@ write(toJSON(list(
         eve_star = eve_star_symbols
     )
 ), indent = 4),
-    paste0("./results/indicators_",Sys.Date(),".json")
+    file(result_file,'w')
 )
+
+drive_upload(result_file, path = as_id('1n6eCiYwneU5FUOqhHKRsQXXVJJlUfWjn'))
 
 # https://bookdown.org/kochiuyu/Technical-Analysis-with-R/quantmod.html
 # https://rdrr.io/rforge/candlesticks/
