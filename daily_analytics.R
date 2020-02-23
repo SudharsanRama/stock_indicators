@@ -3,6 +3,7 @@ library(RMariaDB)
 library(candlesticks)
 library(xts)
 library(rjson)
+library(googledrive)
 
 stockDb <- dbConnect(RMariaDB::MariaDB(), user='stockuser', password='stockuser@123', dbname='stockdb', host='localhost')
 
@@ -48,15 +49,21 @@ hammer_symbols <- c() # Bullish
 hanging_man_symbols <- c() # Bearish
 for(symbol in symbols){
     df <- main_df[which(main_df$SYMBOL == symbol),]
+    if(length(row.names(df)) <= 10){
+        next
+    }
     close <- xts(df$CLOSE, order.by = df$TIMESTAMP)
     dfxts <- merge(close, df$OPEN, df$HIGH, df$LOW)
     hammer <- CSPHammer(dfxts)
+    trend <- TrendDetectionChannel(dfxts, n=10)
 
-    if((tail(coredata(hammer),n=1)[1]) && (tail(df,n=1)$LOW <= min(get_tail_except(df,11,1)$LOW))){
-        hammer_symbols <- c(hammer_symbols, symbol)
-    }
-    if((tail(coredata(hammer),n=1)[1]) && (tail(df,n=1)$HIGH >= max(get_tail_except(df,11,1)$HIGH))){
-        hanging_man_symbols <- c(hanging_man_symbols, symbol)
+    if(tail(coredata(hammer),n=1)[1]){
+        if((tail(coredata(trend),n=1)[4] == -1) && (tail(df,n=1)$CLOSE > get_tail_except(df,2,1)$CLOSE)){
+            hammer_symbols <- c(hammer_symbols, symbol)
+        }
+        if((tail(coredata(trend),n=1)[4] == 1) && (tail(df,n=1)$CLOSE < get_tail_except(df,2,1)$CLOSE)){
+            hanging_man_symbols <- c(hanging_man_symbols, symbol)
+        }
     }
 }
 
@@ -65,15 +72,21 @@ inv_hammer_symbols <- c() # Bullish
 shooting_star_symbols <- c() # Bearish
 for(symbol in symbols){
     df <- main_df[which(main_df$SYMBOL == symbol),]
+    if(length(row.names(df)) <= 10){
+        next
+    }
     close <- xts(df$CLOSE, order.by = df$TIMESTAMP)
     dfxts <- merge(close, df$OPEN, df$HIGH, df$LOW)
     inv_hammer <- CSPInvertedHammer(dfxts)
+    trend <- TrendDetectionChannel(dfxts, n=10)
 
-    if((tail(coredata(inv_hammer),n=1)[1]) && (tail(df,n=1)$LOW <= min(get_tail_except(df,11,1)$LOW))){
-        inv_hammer_symbols <- c(inv_hammer_symbols, symbol)
-    }
-    if((tail(coredata(inv_hammer),n=1)[1]) && (tail(df,n=1)$HIGH >= max(get_tail_except(df,11,1)$HIGH))){
-        shooting_star_symbols <- c(shooting_star_symbols, symbol)
+    if(tail(coredata(inv_hammer),n=1)[1]){
+        if((tail(coredata(trend),n=1)[4] == -1) && (tail(df,n=1)$CLOSE > get_tail_except(df,2,1)$CLOSE)){
+            inv_hammer_symbols <- c(inv_hammer_symbols, symbol)
+        }
+        if((tail(coredata(trend),n=1)[4] == 1) && (tail(df,n=1)$CLOSE < get_tail_except(df,2,1)$CLOSE)){
+            shooting_star_symbols <- c(shooting_star_symbols, symbol)
+        }
     }
 }
 
@@ -82,7 +95,7 @@ morn_star_symbols <- c() # Bullish
 eve_star_symbols <- c() # Bearish
 for(symbol in symbols){
     df <- main_df[which(main_df$SYMBOL == symbol),]
-    if(length(row.names(df)) < 20){
+    if(length(row.names(df)) <= 23){
         next
     }
     close <- xts(df$CLOSE, order.by = df$TIMESTAMP)
@@ -97,17 +110,24 @@ for(symbol in symbols){
     }
 }
 
+result_file <- paste0("/Users/sr1000266884/Documents/repositories/stock_indicators/results/indicators_",Sys.Date(),".json")
 write(toJSON(list(
-    doji = doji_symbols,
-    hammer = hammer_symbols,
-    hanging_man = hanging_man_symbols,
-    inv_hammer = inv_hammer_symbols,
-    shooting_star = shooting_star_symbols,
-    morn_star = morn_star_symbols,
-    eve_star = eve_star_symbols
-)),
-    paste0("indicators_",Sys.Date(),".json")
+    continuous = list(doji = doji_symbols),
+    bullish = list(
+        hammer = hammer_symbols,
+        inv_hammer = inv_hammer_symbols,
+        morn_star = morn_star_symbols
+    ),
+    bearish = list(
+        hanging_man = hanging_man_symbols,
+        shooting_star = shooting_star_symbols,
+        eve_star = eve_star_symbols
+    )
+), indent = 4),
+    file(result_file,'w')
 )
+
+drive_upload(result_file, path = as_id('1n6eCiYwneU5FUOqhHKRsQXXVJJlUfWjn'))
 
 # https://bookdown.org/kochiuyu/Technical-Analysis-with-R/quantmod.html
 # https://rdrr.io/rforge/candlesticks/
