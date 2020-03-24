@@ -5,9 +5,9 @@ library(lubridate)
 library(plyr)
 library(RPushbullet)
 library(config)
-source('custom_indicators.R')
+source('/Users/sr1000266884/Documents/repositories/stock_indicators/custom_indicators.R')
 
-config <- config::get()
+config <- config::get(file='/Users/sr1000266884/Documents/repositories/stock_indicators/config.yml')
 
 agg_timestamp <- function(df, duration = '15 min') {
     df$timestamp <- cut(df$timestamp, duration)
